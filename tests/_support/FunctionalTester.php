@@ -1,5 +1,6 @@
 <?php
 
+use Codeception\Util\Fixtures;
 
 /**
  * Inherited Methods
@@ -23,4 +24,14 @@ class FunctionalTester extends \Codeception\Actor
    /**
     * Define custom actions here
     */
+    function checkIfLogin(\FunctionalTester $I)
+    {
+        //if ($I->loadSessionSnapshot('login')) return;
+        $I->amOnPage('/login');
+        $I->fillField(['name' => 'email'], Fixtures::get('permissions_username'));
+        $I->fillField(['name' => 'password'], Fixtures::get('password'));
+        $I->click('#loginButton');
+
+        //$I->saveSessionSnapshot('login');
+    }   
 }

@@ -1,181 +1,307 @@
-@extends('header')
+{!! Former::open(\App\Models\EntityModel::getFormUrl($entityType) . '/bulk')
+		->addClass('listForm_' . $entityType) !!}
 
-@section('content')
+<div style="display:none">
+	{!! Former::text('action')->id('action_' . $entityType) !!}
+    {!! Former::text('public_id')->id('public_id_' . $entityType) !!}
+    {!! Former::text('datatable')->value('true') !!}
+</div>
 
-	{!! Former::open($entityType . 's/bulk')->addClass('listForm') !!}
-	<div style="display:none">
-		{!! Former::text('action') !!}
-		{!! Former::text('statusId') !!}
-		{!! Former::text('id') !!}
-	</div>
+<div class="pull-left">
+	@if (in_array($entityType, [ENTITY_TASK, ENTITY_EXPENSE, ENTITY_PRODUCT, ENTITY_PROJECT]))
+		@can('create', 'invoice')
+			{!! Button::primary(trans('texts.invoice'))->withAttributes(['class'=>'invoice', 'onclick' =>'submitForm_'.$entityType.'("invoice")'])->appendIcon(Icon::create('check')) !!}
+		@endcan
+	@endif
 
-    @if ($entityType == ENTITY_TASK)
-        {!! Button::primary(trans('texts.invoice'))->withAttributes(['class'=>'invoice', 'onclick' =>'submitForm("invoice")'])->appendIcon(Icon::create('check')) !!}
+	{!! DropdownButton::normal(trans('texts.archive'))
+			->withContents($datatable->bulkActions())
+			->withAttributes(['class'=>'archive'])
+			->split() !!}
+
+	&nbsp;
+	<span id="statusWrapper_{{ $entityType }}" style="display:none">
+		<select class="form-control" style="width: 220px" id="statuses_{{ $entityType }}" multiple="true">
+			@if (count(\App\Models\EntityModel::getStatusesFor($entityType)))
+				<optgroup label="{{ trans('texts.entity_state') }}">
+					@foreach (\App\Models\EntityModel::getStatesFor($entityType) as $key => $value)
+						<option value="{{ $key }}">{{ $value }}</option>
+					@endforeach
+				</optgroup>
+				<optgroup label="{{ trans('texts.status') }}">
+					@foreach (\App\Models\EntityModel::getStatusesFor($entityType) as $key => $value)
+						<option value="{{ $key }}">{{ $value }}</option>
+					@endforeach
+				</optgroup>
+			@else
+				@foreach (\App\Models\EntityModel::getStatesFor($entityType) as $key => $value)
+					<option value="{{ $key }}">{{ $value }}</option>
+				@endforeach
+			@endif
+		</select>
+	</span>
+</div>
+
+<div id="top_right_buttons" class="pull-right">
+	<input id="tableFilter_{{ $entityType }}" type="text" style="width:180px;margin-right:17px;background-color: white !important"
+        class="form-control pull-left" placeholder="{{ trans('texts.filter') }}" value="{{ Input::get('filter') }}"/>
+
+	@if ($entityType == ENTITY_PROPOSAL)
+		{!! DropdownButton::normal(trans('texts.proposal_templates'))
+			->withAttributes(['class'=>'templatesDropdown'])
+			->withContents([
+			  ['label' => trans('texts.new_proposal_template'), 'url' => url('/proposals/templates/create')],
+			]
+		  )->split() !!}
+		  {!! DropdownButton::normal(trans('texts.proposal_snippets'))
+  			->withAttributes(['class'=>'snippetsDropdown'])
+  			->withContents([
+  			  ['label' => trans('texts.new_proposal_snippet'), 'url' => url('/proposals/snippets/create')],
+  			]
+  		  )->split() !!}
+		<script type="text/javascript">
+			$(function() {
+				$('.templatesDropdown:not(.dropdown-toggle)').click(function(event) {
+					openUrlOnClick('{{ url('/proposals/templates') }}', event);
+				});
+				$('.snippetsDropdown:not(.dropdown-toggle)').click(function(event) {
+					openUrlOnClick('{{ url('/proposals/snippets') }}', event);
+				});
+			});
+		</script>
+	@elseif ($entityType == ENTITY_PROPOSAL_SNIPPET)
+		{!! DropdownButton::normal(trans('texts.proposal_categories'))
+			->withAttributes(['class'=>'categoriesDropdown'])
+			->withContents([
+			  ['label' => trans('texts.new_proposal_category'), 'url' => url('/proposals/categories/create')],
+			]
+		  )->split() !!}
+		<script type="text/javascript">
+			$(function() {
+				$('.categoriesDropdown:not(.dropdown-toggle)').click(function(event) {
+					openUrlOnClick('{{ url('/proposals/categories') }}', event);
+				});
+			});
+		</script>
+    @elseif ($entityType == ENTITY_EXPENSE)
+		{!! DropdownButton::normal(trans('texts.recurring'))
+			->withAttributes(['class'=>'recurringDropdown'])
+			->withContents([
+			  ['label' => trans('texts.new_recurring_expense'), 'url' => url('/recurring_expenses/create')],
+			]
+		  )->split() !!}
+		@if (Auth::user()->can('create', ENTITY_EXPENSE_CATEGORY))
+			{!! DropdownButton::normal(trans('texts.categories'))
+                ->withAttributes(['class'=>'categoriesDropdown'])
+                ->withContents([
+                  ['label' => trans('texts.new_expense_category'), 'url' => url('/expense_categories/create')],
+                ]
+              )->split() !!}
+		@else
+			{!! DropdownButton::normal(trans('texts.categories'))
+                ->withAttributes(['class'=>'categoriesDropdown'])
+                ->split() !!}
+		@endif
+	  	<script type="text/javascript">
+		  	$(function() {
+				$('.recurringDropdown:not(.dropdown-toggle)').click(function(event) {
+					openUrlOnClick('{{ url('/recurring_expenses') }}', event)
+		  		});
+				$('.categoriesDropdown:not(.dropdown-toggle)').click(function(event) {
+					openUrlOnClick('{{ url('/expense_categories') }}', event);
+		  		});
+			});
+		</script>
+	@elseif ($entityType == ENTITY_TASK)
+		{!! Button::normal(trans('texts.kanban'))->asLinkTo(url('/tasks/kanban' . (! empty($clientId) ? ('/' . $clientId . (! empty($projectId) ? '/' . $projectId : '')) : '')))->appendIcon(Icon::create('th')) !!}
+		{!! Button::normal(trans('texts.time_tracker'))->asLinkTo('javascript:openTimeTracker()')->appendIcon(Icon::create('time')) !!}
     @endif
 
-	{!! DropdownButton::normal(trans('texts.archive'))->withContents([
-		      ['label' => trans('texts.archive_'.$entityType), 'url' => 'javascript:submitForm("archive")'],
-		      ['label' => trans('texts.delete_'.$entityType), 'url' => 'javascript:submitForm("delete")'],
-		    ])->withAttributes(['class'=>'archive'])->split() !!}
-	
-	&nbsp;<label for="trashed" style="font-weight:normal; margin-left: 10px;">
-		<input id="trashed" type="checkbox" onclick="setTrashVisible()" 
-			{{ Session::get("show_trash:{$entityType}") ? 'checked' : ''}}/>&nbsp; {{ trans('texts.show_archived_deleted')}} {{ strtolower(trans('texts.'.$entityType.'s')) }}
-	</label>
+	@if (Auth::user()->can('create', $entityType) && empty($vendorId))
+    	{!! Button::primary(mtrans($entityType, "new_{$entityType}"))
+			->asLinkTo(url(
+				(in_array($entityType, [ENTITY_PROPOSAL_SNIPPET, ENTITY_PROPOSAL_CATEGORY, ENTITY_PROPOSAL_TEMPLATE]) ? str_replace('_', 's/', Utils::pluralizeEntityType($entityType)) : Utils::pluralizeEntityType($entityType)) .
+				'/create/' . (isset($clientId) ? ($clientId . (isset($projectId) ? '/' . $projectId : '')) : '')
+			))
+			->appendIcon(Icon::create('plus-sign')) !!}
+	@endif
 
-	<div id="top_right_buttons" class="pull-right">
-		<input id="tableFilter" type="text" style="width:140px;margin-right:17px;background-color: white !important" class="form-control pull-left" placeholder="{{ trans('texts.filter') }}"/>
-        @if (Auth::user()->isPro() && $entityType == ENTITY_INVOICE)        
-            {!! Button::normal(trans('texts.quotes'))->asLinkTo(URL::to('/quotes'))->appendIcon(Icon::create('list')) !!}
-        @elseif ($entityType == ENTITY_CLIENT)        
-            {!! Button::normal(trans('texts.credits'))->asLinkTo(URL::to('/credits'))->appendIcon(Icon::create('list')) !!}
-        @endif
+</div>
 
-        @if ($entityType != ENTITY_TASK || Auth::user()->account->timezone_id)
-		  {!! Button::primary(trans("texts.new_$entityType"))->asLinkTo(URL::to("/{$entityType}s/create"))->appendIcon(Icon::create('plus-sign')) !!}
-        @endif
-	</div>
 
-    @if (isset($secEntityType))
-		{!! Datatable::table()		
-	    	->addColumn($secColumns)
-	    	->setUrl(route('api.' . $secEntityType . 's'))    	
-	    	->setOptions('sPaginationType', 'bootstrap')
-	    	->render('datatable') !!}    
-	@endif	
+{!! Datatable::table()
+	->addColumn(Utils::trans($datatable->columnFields(), $datatable->entityType))
+	->setUrl(empty($url) ? url('api/' . Utils::pluralizeEntityType($entityType)) : $url)
+	->setCustomValues('entityType', Utils::pluralizeEntityType($entityType))
+	->setCustomValues('clientId', isset($clientId) && $clientId && empty($projectId))
+	->setOptions('sPaginationType', 'bootstrap')
+    ->setOptions('aaSorting', [[isset($clientId) ? ($datatable->sortCol-1) : $datatable->sortCol, 'desc']])
+	->render('datatable') !!}
 
-	{!! Datatable::table()		
-    	->addColumn($columns)
-    	->setUrl(route('api.' . $entityType . 's'))    	
-    	->setOptions('sPaginationType', 'bootstrap')
-        ->setOptions('aaSorting', [[isset($sortCol) ? $sortCol : '1', 'desc']])
-    	->render('datatable') !!}
-    
-    {!! Former::close() !!}
+@if ($entityType == ENTITY_PAYMENT)
+	@include('partials/refund_payment')
+@endif
 
-    <script type="text/javascript">
+{!! Former::close() !!}
 
-	function submitForm(action) {
-		if (action == 'delete') {
-            if (!confirm('{!! trans("texts.are_you_sure") !!}')) {			
-				return;
+<style type="text/css">
+
+	@foreach ($datatable->rightAlignIndices() as $index)
+		.listForm_{{ $entityType }} table.dataTable td:nth-child({{ $index }}) {
+			text-align: right;
+		}
+	@endforeach
+
+	@foreach ($datatable->centerAlignIndices() as $index)
+		.listForm_{{ $entityType }} table.dataTable td:nth-child({{ $index }}) {
+			text-align: center;
+		}
+	@endforeach
+
+
+</style>
+
+<script type="text/javascript">
+
+	var submittedForm;
+	function submitForm_{{ $entityType }}(action, id) {
+		// prevent duplicate form submissions
+		if (submittedForm) {
+			swal("{{ trans('texts.processing_request') }}")
+			return;
+		}
+		submittedForm = true;
+
+		if (id) {
+			$('#public_id_{{ $entityType }}').val(id);
+		}
+
+		if (action == 'delete' || action == 'emailInvoice') {
+	        sweetConfirm(function() {
+	            $('#action_{{ $entityType }}').val(action);
+	    		$('form.listForm_{{ $entityType }}').submit();
+	        });
+		} else {
+			$('#action_{{ $entityType }}').val(action);
+			$('form.listForm_{{ $entityType }}').submit();
+	    }
+	}
+
+	$(function() {
+
+		// Handle datatable filtering
+	    var tableFilter = '';
+	    var searchTimeout = false;
+
+	    function filterTable_{{ $entityType }}(val) {
+	        if (val == tableFilter) {
+	            return;
+	        }
+	        tableFilter = val;
+			var oTable0 = $('.listForm_{{ $entityType }} .data-table').dataTable();
+	        oTable0.fnFilter(val);
+	    }
+
+	    $('#tableFilter_{{ $entityType }}').on('keyup', function(){
+	        if (searchTimeout) {
+	            window.clearTimeout(searchTimeout);
+	        }
+	        searchTimeout = setTimeout(function() {
+	            filterTable_{{ $entityType }}($('#tableFilter_{{ $entityType }}').val());
+	        }, 500);
+	    })
+
+	    if ($('#tableFilter_{{ $entityType }}').val()) {
+	        filterTable_{{ $entityType }}($('#tableFilter_{{ $entityType }}').val());
+	    }
+
+		$('.listForm_{{ $entityType }} .head0').click(function(event) {
+			if (event.target.type !== 'checkbox') {
+				$('.listForm_{{ $entityType }} .head0 input[type=checkbox]').click();
 			}
-		}		
+		});
 
-		$('#action').val(action);
-		$('form.listForm').submit();		
-	}
+		// Enable/disable bulk action buttons
+	    window.onDatatableReady_{{ Utils::pluralizeEntityType($entityType) }} = function() {
+	        $(':checkbox').click(function() {
+	            setBulkActionsEnabled_{{ $entityType }}();
+	        });
 
-	function deleteEntity(id) {
-		$('#id').val(id);
-		submitForm('delete');
-	}
+	        $('.listForm_{{ $entityType }} tbody tr').unbind('click').click(function(event) {
+	            if (event.target.type !== 'checkbox' && event.target.type !== 'button' && event.target.tagName.toLowerCase() !== 'a') {
+	                $checkbox = $(this).closest('tr').find(':checkbox:not(:disabled)');
+	                var checked = $checkbox.prop('checked');
+	                $checkbox.prop('checked', !checked);
+	                setBulkActionsEnabled_{{ $entityType }}();
+	            }
+	        });
 
-	function archiveEntity(id) {
-		$('#id').val(id);
-		submitForm('archive');
-	}
+	        actionListHandler();
+			$('[data-toggle="tooltip"]').tooltip();
+	    }
 
-    function restoreEntity(id) {
-        $('#id').val(id);
-        submitForm('restore');
-    }
-    function convertEntity(id) {
-        $('#id').val(id);
-        submitForm('convert');
-    }
+	    $('.listForm_{{ $entityType }} .archive, .invoice').prop('disabled', true);
+	    $('.listForm_{{ $entityType }} .archive:not(.dropdown-toggle)').click(function() {
+	        submitForm_{{ $entityType }}('archive');
+	    });
 
-	function markEntity(id, statusId) {
-		$('#id').val(id);
-		$('#statusId').val(statusId);
-		submitForm('mark');
-	}
+	    $('.listForm_{{ $entityType }} .selectAll').click(function() {
+	        $(this).closest('table').find(':checkbox:not(:disabled)').prop('checked', this.checked);
+	    });
 
-    function stopTask(id) {
-        $('#id').val(id);
-        submitForm('stop');
-    }
-
-    function invoiceTask(id) {
-        $('#id').val(id);
-        submitForm('invoice');
-    }
-
-	function setTrashVisible() {
-		var checked = $('#trashed').is(':checked');
-		window.location = '{{ URL::to('view_archive/' . $entityType) }}' + (checked ? '/true' : '/false');
-	}
-
-    $(function() {
-        var tableFilter = '';
-        var searchTimeout = false;
-
-        var oTable0 = $('#DataTables_Table_0').dataTable();
-        var oTable1 = $('#DataTables_Table_1').dataTable(); 
-        function filterTable(val) { 
-            if (val == tableFilter) {
-                return;
-            }
-            tableFilter = val;
-            oTable0.fnFilter(val);
-            @if (isset($secEntityType))
-                oTable1.fnFilter(val);
-            @endif
-        }
-
-        $('#tableFilter').on('keyup', function(){
-            if (searchTimeout) {
-                window.clearTimeout(searchTimeout);
-            }
-
-            searchTimeout = setTimeout(function() {
-                filterTable($('#tableFilter').val());
-            }, 500);                   
-        })
-
-        window.onDatatableReady = function() {      
-            $(':checkbox').click(function() {
-                setBulkActionsEnabled();
-            }); 
-
-            $('tbody tr').click(function(event) {        
-                if (event.target.type !== 'checkbox' && event.target.type !== 'button' && event.target.tagName.toLowerCase() !== 'a') {
-                    $checkbox = $(this).closest('tr').find(':checkbox:not(:disabled)');             
-                    var checked = $checkbox.prop('checked');
-                    $checkbox.prop('checked', !checked);
-                    setBulkActionsEnabled();
-                }
-            });
-
-            $('tbody tr').mouseover(function() {
-                $(this).closest('tr').find('.tr-action').css('visibility','visible');
-            }).mouseout(function() {
-                $dropdown = $(this).closest('tr').find('.tr-action');
-                if (!$dropdown.hasClass('open')) {
-                    $dropdown.css('visibility','hidden');
-                }           
-            });
-
-        }   
-
-        $('.archive, .invoice').prop('disabled', true);
-        $('.archive:not(.dropdown-toggle)').click(function() {
-            submitForm('archive');
-        });
-
-        $('.selectAll').click(function() {
-            $(this).closest('table').find(':checkbox:not(:disabled)').prop('checked', this.checked);
-        });
-
-        function setBulkActionsEnabled() {
-            var checked = $('tbody :checkbox:checked').length > 0;
-            $('button.archive, button.invoice').prop('disabled', !checked); 
+	    function setBulkActionsEnabled_{{ $entityType }}() {
+	        var buttonLabel = "{{ trans('texts.archive') }}";
+	        var count = $('.listForm_{{ $entityType }} tbody :checkbox:checked').length;
+	        $('.listForm_{{ $entityType }} button.archive, .listForm_{{ $entityType }} button.invoice').prop('disabled', !count);
+	        if (count) {
+	            buttonLabel += ' (' + count + ')';
+	        }
+	        $('.listForm_{{ $entityType }} button.archive').not('.dropdown-toggle').text(buttonLabel);
+	    }
 
 
-        }
+		// Setup state/status filter
+		$('#statuses_{{ $entityType }}').select2({
+			placeholder: "{{ trans('texts.status') }}",
+			//allowClear: true,
+			templateSelection: function(data, container) {
+				if (data.id == 'archived') {
+					$(container).css('color', '#fff');
+					$(container).css('background-color', '#f0ad4e');
+					$(container).css('border-color', '#eea236');
+				} else if (data.id == 'deleted') {
+					$(container).css('color', '#fff');
+					$(container).css('background-color', '#d9534f');
+					$(container).css('border-color', '#d43f3a');
+				}
+				return data.text;
+			}
+		}).val('{{ session('entity_state_filter:' . $entityType, STATUS_ACTIVE) . ',' . session('entity_status_filter:' . $entityType) }}'.split(','))
+			  .trigger('change')
+		  .on('change', function() {
+			var filter = $('#statuses_{{ $entityType }}').val();
+			if (filter) {
+				filter = filter.join(',');
+			} else {
+				filter = '';
+			}
+			var url = '{{ URL::to('set_entity_filter/' . $entityType) }}' + '/' + filter;
+	        $.get(url, function(data) {
+	            refreshDatatable_{{ Utils::pluralizeEntityType($entityType) }}();
+	        })
+		}).maximizeSelect2Height();
 
-    });
+		$('#statusWrapper_{{ $entityType }}').show();
 
-    </script>
 
-@stop
+		@for ($i = 1; $i <= 10; $i++)
+			Mousetrap.bind('g {{ $i }}', function(e) {
+				var link = $('.data-table').find('tr:nth-child({{ $i }})').find('a').attr('href');
+				if (link) {
+					location.href = link;
+				}
+			});
+		@endfor
+	});
+
+</script>

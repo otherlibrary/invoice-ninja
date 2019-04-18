@@ -7,5 +7,15 @@
 class_name: FunctionalTester
 modules:
     enabled:
-        # add framework module here
         - \Helper\Functional
+        - PhpBrowser:
+            url: 'http://www.ninja.test:8000'
+            curl:
+               CURLOPT_RETURNTRANSFER: true
+        - Db:
+            dsn: 'mysql:dbname=ninja;host=127.0.0.1;'
+            user: 'ninja'
+            password: 'ninja'
+            dump: tests/_data/dump.sql
+    disabled:
+        - Laravel5

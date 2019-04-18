@@ -1,19 +1,20 @@
-<?php 
+<?php
 
 $I = new AcceptanceTester($scenario);
+$I->checkIfLogin($I);
 
 $I->wantTo('Test all pages load');
-$I->amOnPage('/login');
-//$I->see(trans('texts.forgot_password'));
 
-// Login as test user
-$I->fillField(['name' => 'email'], 'hillelcoren@gmail.com');
-$I->fillField(['name' => 'password'], '4uejs%2ksl#271df');
-$I->click('Let\'s go');
-$I->see('Dashboard');
+// Check all language files
+$count = $I->grabNumRecords('languages');
+for ($i=1; $i<=$count; $i++) {
+    $locale = $I->grabFromDatabase('languages', 'locale', ['id' => $i]);
+    $I->amOnPage("/dashboard?lang={$locale}");
+    $I->seeElement('.navbar-brand');
+}
 
 // Top level navigation
-$I->amOnPage('/dashboard');
+$I->amOnPage('/dashboard?lang=en');
 $I->see('Total Revenue');
 
 $I->amOnPage('/clients');
@@ -59,38 +60,35 @@ $I->see('Payments', 'li');
 $I->see('Create');
 
 // Settings pages
-$I->amOnPage('/company/details');
+$I->amOnPage('/settings/company_details');
 $I->see('Details');
 
-$I->amOnPage('/gateways/create');
-$I->see('Add Gateway');
+//$I->amOnPage('/gateways/create');
+//$I->see('Add Gateway');
 
-$I->amOnPage('/company/products');
+$I->amOnPage('/settings/products');
 $I->see('Product Settings');
 
-$I->amOnPage('/company/import_export');
+$I->amOnPage('/settings/import_export');
 $I->see('Import');
 
-$I->amOnPage('/company/advanced_settings/invoice_settings');
-$I->see('Invoice Fields');
+$I->amOnPage('/settings/invoice_settings');
+$I->see('Custom Fields');
 
-$I->amOnPage('/company/advanced_settings/invoice_design');
+$I->amOnPage('/settings/invoice_design');
 $I->see('Invoice Design');
 
-$I->amOnPage('/company/advanced_settings/email_templates');
+$I->amOnPage('/settings/templates_and_reminders');
 $I->see('Invoice Email');
 
-$I->amOnPage('/company/advanced_settings/charts_and_reports');
-$I->see('Data Visualizations');
+$I->amOnPage('/reports');
+$I->see('Reports');
 
-$I->amOnPage('/company/advanced_settings/user_management');
-$I->see('Add User');
+$I->amOnPage('/check_data');
+$I->see('success');
+
 
 //try to logout
-$I->click('#myAccountButton');
-$I->see('Log Out');
-$I->click('Log Out');
-
-// Miscellaneous pages
-$I->amOnPage('/terms');
-$I->see('Terms');
+//$I->click('#myAccountButton');
+//$I->see('Log Out');
+//$I->click('Log Out');

@@ -1,6 +1,5 @@
 <?php
 
-use \AcceptanceTester;
 use App\Models\Payment;
 use Faker\Factory;
 
@@ -17,20 +16,46 @@ class PaymentCest
 
     public function create(AcceptanceTester $I)
     {
-        $clientName = $I->grabFromDatabase('clients', 'name');
-        $amount = rand(1, 30);
+        $clientEmail = $this->faker->safeEmail;
+        $productKey = $this->faker->text(10);
+        $amount = rand(1, 10);
 
-        $I->wantTo("enter a payment");
+        $I->wantTo('enter a payment');
+
+        // create client
+        $I->amOnPage('/clients/create');
+        $I->fillField(['name' => 'contacts[0][email]'], $clientEmail);
+        $I->click('Save');
+        $I->see($clientEmail);
+
+        // create product
+        $I->amOnPage('/products/create');
+        $I->fillField(['name' => 'product_key'], $productKey);
+        $I->fillField(['name' => 'notes'], $this->faker->text(80));
+        $I->fillField(['name' => 'cost'], $this->faker->numberBetween(11, 20));
+        $I->click('Save');
+        $I->wait(1);
+        //$I->see($productKey);
+
+        // create invoice
+        $I->amOnPage('/invoices/create');
+        $I->selectDropdown($I, $clientEmail, '.client_select .dropdown-toggle');
+        $I->fillField('table.invoice-table tbody tr:nth-child(1) td:nth-child(2) input.tt-input', $productKey);
+        $I->click('table.invoice-table tbody tr:nth-child(1) .tt-selectable');
+        $I->click('Mark Sent');
+        $I->wait(2);
+        $I->see($clientEmail);
+
         $I->amOnPage('/payments/create');
-
-        $I->selectDropdown($I,  $clientName, '.client-select .dropdown-toggle');
+        $I->selectDropdown($I,  $clientEmail, '.client-select .dropdown-toggle');
         $I->selectDropdownRow($I, 1, '.invoice-select .combobox-container');
         $I->fillField(['name' => 'amount'], $amount);
-        $I->selectDropdownRow($I, 1, 'div.panel-body div.form-group:nth-child(4) .combobox-container');
+        $I->selectDropdown($I, 'Cash', '.payment-type-select .dropdown-toggle');
         $I->selectDataPicker($I, '#payment_date', 'now + 1 day');
         $I->fillField(['name' => 'transaction_reference'], $this->faker->text(12));
 
         $I->click('Save');
+        $I->wait(2);
 
         $I->see('Successfully created payment');
         $I->seeInDatabase('payments', ['amount' => number_format($amount, 2)]);
@@ -39,8 +64,8 @@ class PaymentCest
     public function editPayment(AcceptanceTester $I)
     {
         $ref = $this->faker->text(12);
-        
-        $I->wantTo("edit a payment");
+
+        $I->wantTo('edit a payment');
         $I->amOnPage('/payments/1/edit');
 
         $I->selectDataPicker($I, '#payment_date', 'now + 2 day');
@@ -52,7 +77,7 @@ class PaymentCest
 
     public function listPayments(AcceptanceTester $I)
     {
-        $I->wantTo("list payments");
+        $I->wantTo('list payments');
         $I->amOnPage('/payments');
 
         $I->seeNumberOfElements('tbody tr[role=row]', [1, 10]);
